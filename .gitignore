@@ -1,0 +1,44 @@
+# Personal guides
+viva-guide.md
+run-guide.md
+
+# Compiled binaries
+engine
+cpu_hog
+io_pulse
+memory_hog
+
+# Kernel module build artifacts
+*.ko
+*.o
+*.mod
+*.mod.c
+Module.symvers
+modules.order
+*.cmd
+.tmp_versions/
+
+# Hidden build files
+.module-common.o
+.Module.symvers.cmd
+.modules.order.cmd
+.monitor.ko.cmd
+.monitor.mod.cmd
+.monitor.mod.o.cmd
+.monitor.o.cmd
+
+# Root filesystems
+rootfs-base/
+rootfs-*/
+
+# Logs
+logs/
+*.log
+
+# Archives
+*.tar.gz
+
+# Editor / OS junk
+*.swp
+*~
+.vscode/
