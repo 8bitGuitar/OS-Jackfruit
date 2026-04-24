@@ -160,7 +160,91 @@ dmesg | tail
 
 ## 3. Demo with Screenshots
 
-> **Pending** — Screenshots will be added after running the demo on the Ubuntu VM.
+### Screenshot 1: Multi-Container Supervision
+
+![Multi-container supervision](screenshots/1.jpeg)
+
+**Caption:** Supervisor terminal showing two containers (`alpha` with PID 57598 and `beta` with PID 59067) running concurrently under a single supervisor process. The supervisor connects to the kernel monitor, starts the logging consumer thread, spawns both containers with dedicated producer threads, and reaps them upon exit (`state=exited code=0 signal=0`).
+
+---
+
+### Screenshot 2: Metadata Tracking
+
+![Metadata tracking](screenshots/2.jpeg)
+
+**Caption:** Output of `sudo ./engine ps` showing tracked container metadata. Both `alpha` and `beta` are in `running` state with their host PIDs, start times, configured soft/hard memory limits (48/80 MiB and 64/96 MiB respectively), and exit status fields.
+
+---
+
+### Screenshot 3: Bounded-Buffer Logging (Container Alpha — CPU-Bound)
+
+![Bounded-buffer logging alpha](screenshots/3.jpeg)
+
+**Caption:** Output of `sudo ./engine logs alpha` showing log lines captured through the bounded-buffer logging pipeline. The `cpu_hog` workload running inside container `alpha` produces per-second accumulator values for 30 seconds. Each line was written to the container's stdout, read by a producer thread via pipe, pushed into the bounded buffer, and written to the log file by the consumer thread.
+
+---
+
+### Screenshot 4: Bounded-Buffer Logging (Container Beta — I/O-Bound)
+
+![Bounded-buffer logging beta](screenshots/4.jpeg)
+
+**Caption:** Output of `sudo ./engine logs beta` showing log lines from the `io_pulse` workload inside container `beta`. The 50 iterations of I/O writes were captured through the same producer-consumer logging pipeline, demonstrating concurrent multi-container log capture without data loss.
+
+---
+
+### Screenshot 5: CLI and IPC (Supervisor Terminal — Receiving Commands)
+
+![CLI IPC supervisor side](screenshots/5.jpeg)
+
+**Caption:** Supervisor terminal showing it received and processed CLI commands sent over the UNIX domain socket (`/tmp/mini_runtime.sock`). The `start` commands for `alpha` and `beta` were issued from a separate CLI client terminal, transmitted via the control IPC channel (Path B), and executed by the supervisor which spawned the containers and reported their lifecycle events.
+
+---
+
+### Screenshot 6: CLI and IPC (Supervisor Terminal — Command Processing)
+
+![CLI IPC supervisor processing](screenshots/6.jpeg)
+
+**Caption:** Another view of the supervisor terminal demonstrating end-to-end IPC flow. CLI requests arrive over the UNIX domain socket, the supervisor parses the command, acts on it (starting containers, tracking metadata), and sends responses back to the CLI client. The supervisor's event loop processes these concurrently with container lifecycle management.
+
+---
+
+### Screenshot 7: CLI and IPC (Client-Side Validation)
+
+![CLI client validation](screenshots/7.jpeg)
+
+**Caption:** CLI client terminal showing usage validation when `sudo ./engine start` is invoked without required arguments. The engine prints the correct usage format: `./engine start <id> <container-rootfs> <command> [--soft-mib N] [--hard-mib N] [--nice N]`, demonstrating the CLI contract and argument parsing.
+
+---
+
+### Screenshot 8: Soft-Limit Warning
+
+![Soft-limit warning](screenshots/8.jpeg)
+
+**Caption:** Output of `sudo dmesg | grep "SOFT LIMIT"` showing the kernel module's soft-limit warning: `[container_monitor] SOFT LIMIT container=memtest pid=102537 rss=25825280 limit=20971520`. The `memtest` container's RSS (≈24.6 MiB) exceeded its configured soft limit (20 MiB), triggering a `printk` warning. The process continues running.
+
+---
+
+### Screenshot 9: Hard-Limit Enforcement
+
+![Hard-limit enforcement](screenshots/9.jpeg)
+
+**Caption:** Combined `dmesg` and `engine ps` output showing hard-limit enforcement. The kernel log shows both the SOFT LIMIT warning and the subsequent `HARD LIMIT container=memtest pid=102537 rss=59412480 limit=52428800` event where RSS (≈56.6 MiB) exceeded the hard limit (50 MiB). The `engine ps` output confirms `memtest` is in `killed` state with exit code 137 and signal 9 (`SIGKILL`), correctly attributed as a hard-limit kill.
+
+---
+
+### Screenshot 10: Scheduling Experiment
+
+![Scheduling experiment](screenshots/10.jpeg)
+
+**Caption:** Side-by-side log output from `sudo ./engine logs cpu-nice0` (bottom) and `sudo ./engine logs cpu-nice19` (top) comparing two `cpu_hog` workloads running concurrently with different nice values. The nice-0 container shows a final accumulator of `≈2.97×10^19` while the nice-19 container shows `≈9.07×10^18` — roughly a 3:1 ratio — demonstrating that CFS allocated significantly more CPU time to the higher-priority (lower nice value) container.
+
+---
+
+### Screenshot 11: Clean Teardown
+
+![Clean teardown](screenshots/11.jpeg)
+
+**Caption:** Full lifecycle teardown evidence across multiple terminal panes. **Top:** Supervisor receives termination signal, shuts down all containers, logger consumer thread exits, supervisor exits cleanly. **Middle:** `ps aux | grep "engine|defunct|zombie"` shows no zombie or defunct processes remaining. **Bottom-left:** `sudo rmmod monitor` successfully unloads the kernel module. **Bottom-right:** `dmesg | tail` confirms `[container_monitor] Module unloaded` with all monitored entries properly deregistered and freed.
 
 ---
 
